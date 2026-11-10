@@ -1,0 +1,185 @@
+﻿@model List<AtolyeTakip.Models.Kullanici>
+@{
+    Layout = null; // Varsayılan Home/Privacy menüsünü tamamen kaldırır
+    ViewData["Title"] = "Personel Yönetimi - Atölye Takip";
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Personel Yönetimi - Atölye Takip</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background-color: #f4f6f9;
+        }
+
+        .kullanici-kodu {
+            background-color: #e9ecef;
+            color: #212529;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Üst Kurumsal Menü / Navbar (Home-Privacy yerine kurumsal menü) -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary px-4 mb-4 shadow-sm">
+        <a class="navbar-brand fw-bold fs-5 text-white text-decoration-none" href="/Muhendis/Index">
+            ⚙️ Atölye Yönetim Paneli
+        </a>
+        <div class="navbar-nav me-auto ms-3 d-flex flex-row gap-3">
+            <a class="nav-link text-white-50" href="/Muhendis/Index">📊 Üretim Kayıtları</a>
+            <a class="nav-link text-white-50" href="/Muhendis/Parcalar">📋 Parça &amp; Hedef Yönetimi</a>
+            <a class="nav-link text-white active fw-bold border-bottom border-2 border-white pb-1" href="/Muhendis/Personeller">👥 Personel Yönetimi</a>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-white-50 small me-2">Mühendis Oturumu</span>
+            <a class="btn btn-outline-light btn-sm fw-semibold" href="/Hesap/Cikis">Çıkış Yap</a>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 pb-5">
+
+        <!-- Sayfa Başlığı ve Geri Dön Butonu -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bold text-dark mb-1">👥 Personel Yönetimi</h3>
+                <p class="text-muted small mb-0">Atölye çalışanlarının hesaplarını ve giriş şifrelerini buradan yönetebilirsiniz.</p>
+            </div>
+            <a href="/Muhendis/Index" class="btn btn-white btn-outline-secondary fw-semibold shadow-sm">
+                ← Üretim Tablosuna Dön
+            </a>
+        </div>
+
+        <!-- Bildirim Mesajları -->
+        @if (TempData["Mesaj"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
+                <strong>İşlem Başarılı:</strong> @TempData["Mesaj"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Hata"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0" role="alert">
+                <strong>Hata:</strong> @TempData["Hata"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        <div class="row g-4">
+            <!-- Sol Kart: Yeni Personel Ekleme Formu -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header bg-dark text-white fw-bold py-3">
+                        ➕ Yeni Personel Tanımla
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="post" action="/Muhendis/PersonelEkle">
+                            @Html.AntiForgeryToken()
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-secondary">AD SOYAD</label>
+                                <input type="text" name="adSoyad" class="form-control form-control-lg fs-6" required placeholder="Örn: Ali Yılmaz" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-secondary">KULLANICI ADI (GİRİŞ İÇİN)</label>
+                                <input type="text" name="kullaniciAdi" class="form-control form-control-lg fs-6" required placeholder="Örn: ali" />
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold small text-secondary">BAŞLANGIÇ ŞİFRESİ</label>
+                                <input type="password" name="sifre" class="form-control form-control-lg fs-6" required value="1234" />
+                                <div class="form-text small">Varsayılan şifre: <code>1234</code></div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm">
+                                + Personeli Kaydet
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sağ Tablo: Kayıtlı Personeller & Şifre İşlemleri -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold text-dark">Kayıtlı Atölye Personelleri</h6>
+                        <span class="badge bg-primary px-3 py-2 rounded-pill">@Model.Count Aktif Personel</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="table-light text-secondary small">
+                                <tr>
+                                    <th class="text-start ps-4">Ad Soyad</th>
+                                    <th>Kullanıcı Adı</th>
+                                    <th>Yetki / Rol</th>
+                                    <th>Yeni Şifre Belirle</th>
+                                    <th class="pe-4">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!Model.Any())
+                                {
+                                    <tr>
+                                        <td colspan="5" class="py-5 text-muted">Sistemde henüz kayıtlı personel yok.</td>
+                                    </tr>
+                                }
+                                @foreach (var per in Model)
+                                {
+                                    <tr>
+                                        <td class="text-start ps-4 fw-bold text-dark">
+                                            @per.AdSoyad
+                                        </td>
+                                        <td>
+                                            <!-- Pembe renk kaldırıldı, kurumsal gri badge yapıldı -->
+                                            <span class="kullanici-kodu">@per.KullaniciAdi</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-1 rounded-pill fw-semibold">
+                                                @per.Rol
+                                            </span>
+                                        </td>
+                                        <td style="min-width: 230px;">
+                                            <form method="post" action="/Muhendis/SifreGuncelle" class="d-flex gap-1 justify-content-center">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@per.Id" />
+                                                <input type="text" name="yeniSifre" class="form-control form-control-sm text-center" placeholder="Yeni şifre" required style="max-width: 120px;" />
+                                                <button type="submit" class="btn btn-sm btn-warning fw-semibold shadow-sm">
+                                                    Güncelle
+                                                </button>
+                                            </form>
+                                        </td>
+                                        <td class="pe-4">
+                                            <form method="post" action="/Muhendis/PersonelSil" onsubmit="return confirm('@per.AdSoyad isimli personeli silmek istediğinize emin misiniz?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@per.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger px-3">
+                                                    Sil
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

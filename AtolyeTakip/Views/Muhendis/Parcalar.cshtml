@@ -1,0 +1,278 @@
+﻿@model List<AtolyeTakip.Models.Parca>
+@{
+    Layout = null;
+    ViewData["Title"] = "Parça & Hedef Yönetimi - Atölye Takip";
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parça & Hedef Yönetimi - Atölye Takip</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background-color: #f4f6f9;
+        }
+
+        .hesap-kutu {
+            background-color: #eef4fc;
+            border: 1px dashed #0d6efd;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Üst Kurumsal Menü -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary px-4 mb-4 shadow-sm">
+        <a class="navbar-brand fw-bold fs-5 text-white text-decoration-none" href="/Muhendis/Index">⚙️ Atölye Yönetim Paneli</a>
+        <div class="navbar-nav me-auto ms-3 d-flex flex-row gap-3">
+            <a class="nav-link text-white-50" href="/Muhendis/Index">📊 Üretim Kayıtları</a>
+            <a class="nav-link text-white active fw-bold border-bottom border-2 border-white pb-1" href="/Muhendis/Parcalar">📋 Parça &amp; Hedef Yönetimi</a>
+            <a class="nav-link text-white-50" href="/Muhendis/Tezgahlar">🛠️ Tezgah Yönetimi</a>
+            <a class="nav-link text-white-50" href="/Muhendis/Personeller">👥 Personel Yönetimi</a>
+        </div>
+        <a class="btn btn-outline-light btn-sm fw-semibold" href="/Hesap/Cikis">Çıkış Yap</a>
+    </nav>
+
+    <div class="container-fluid px-4 pb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bold text-dark mb-1">📋 Parça &amp; Vardiya Hedef Yönetimi</h3>
+                <p class="text-muted small mb-0">Çevrim süresi ve molaya göre vardiya hedeflerini otomatik hesaplayıp tanımlayın.</p>
+            </div>
+            <a href="/Muhendis/Index" class="btn btn-outline-secondary fw-semibold shadow-sm">← Üretim Tablosuna Dön</a>
+        </div>
+
+        @if (TempData["Mesaj"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+                ✅ @TempData["Mesaj"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+        @if (TempData["Hata"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+                ⚠️ @TempData["Hata"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        <div class="row g-4">
+            <!-- Sol: Yeni Parça Ekleme & Otomatik Hesaplayıcı -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header bg-dark text-white fw-bold py-3 d-flex justify-content-between align-items-center">
+                        <span>➕ Yeni Parça Ekle</span>
+                    </div>
+                    <div class="card-body p-4">
+
+                        <!-- OTOMATİK HESAPLAMA SİHİRBAZI -->
+                        <div class="hesap-kutu p-3 rounded-3 mb-3">
+                            <span class="fw-bold text-primary small d-block mb-2">🧮 Hedef Hesaplama Asistanı</span>
+
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label small text-muted mb-0">Kaç Dakika?</label>
+                                    <input type="number" id="hesapDk" class="form-control form-control-sm" placeholder="Örn: 15" min="1" value="15">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small text-muted mb-0">Kaç Adet Çıkıyor?</label>
+                                    <input type="number" id="hesapAdet" class="form-control form-control-sm" placeholder="Örn: 1" min="1" value="1">
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small text-muted mb-0">Toplam Mola / Duruş (Dk)</label>
+                                <input type="number" id="hesapMola" class="form-control form-control-sm" placeholder="Örn: 45 dk" value="45" min="0">
+                            </div>
+
+                            <button type="button" class="btn btn-sm btn-primary w-100 fw-bold" onclick="hedefHesaplaVeAktar()">
+                                ⚡ Hesapla ve Forma Aktar
+                            </button>
+                        </div>
+
+                        <!-- KAYIT FORMU -->
+                        <form method="post" action="/Muhendis/ParcaEkle">
+                            @Html.AntiForgeryToken()
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-secondary">PARÇA ADI / KODU</label>
+                                <input type="text" name="parcaAdi" class="form-control" required placeholder="Örn: Gövde Flanşı A1" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-secondary">1 PARÇA İÇİN SÜRE (DK)</label>
+                                <input type="number" name="hedefSureDk" id="formHedefSure" class="form-control" required value="15" min="1" />
+                            </div>
+
+                            <div class="p-3 bg-light rounded-3 border mb-3">
+                                <span class="fw-bold small text-dark d-block mb-2">Hesaplanan Vardiya Hedefleri</span>
+
+                                <div class="mb-2">
+                                    <label class="form-label small text-muted mb-1">1. Vardiya (08:00 - 17:45)</label>
+                                    <input type="number" name="hedefVardiya1" id="formV1" class="form-control form-control-sm fw-bold text-primary" required value="35" min="0" />
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small text-muted mb-1">2. Vardiya (18:00 - 01:45)</label>
+                                    <input type="number" name="hedefVardiya2" id="formV2" class="form-control form-control-sm fw-bold text-primary" required value="28" min="0" />
+                                </div>
+                                <div>
+                                    <label class="form-label small text-muted mb-1">3. Vardiya (02:00 - 07:45)</label>
+                                    <input type="number" name="hedefVardiya3" id="formV3" class="form-control form-control-sm fw-bold text-primary" required value="20" min="0" />
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100 fw-bold py-2 shadow-sm">+ Parçayı Kaydet</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sağ: Parça Listesi -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0 fw-bold text-dark">Tanımlı Parçalar ve Hedefler</h6>
+                        <span class="badge bg-primary px-3 py-2 rounded-pill">@Model.Count Parça</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="table-light text-secondary small">
+                                <tr>
+                                    <th class="text-start ps-3">Parça Adı</th>
+                                    <th>Çevrim Süresi</th>
+                                    <th>1. Vardiya</th>
+                                    <th>2. Vardiya</th>
+                                    <th>3. Vardiya</th>
+                                    <th class="pe-3">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!Model.Any())
+                                {
+                                    <tr>
+                                        <td colspan="6" class="py-5 text-muted">Sistemde henüz kayıtlı parça yok.</td>
+                                    </tr>
+                                }
+                                @foreach (var p in Model)
+                                {
+                                    <tr>
+                                        <td class="text-start ps-3 fw-bold text-dark">@p.ParcaAdi</td>
+                                        <td><span class="badge bg-secondary">@p.HedefSureDk dk</span></td>
+                                        <td><span class="fw-bold text-primary">@p.HedefMiktarVardiya1 ad</span></td>
+                                        <td><span class="fw-bold text-primary">@p.HedefMiktarVardiya2 ad</span></td>
+                                        <td><span class="fw-bold text-primary">@p.HedefMiktarVardiya3 ad</span></td>
+
+                                        <td class="pe-3">
+                                            <div class="d-flex justify-content-center gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#duzenleModal-@p.Id">
+                                                    Düzenle
+                                                </button>
+                                                <form method="post" action="/Muhendis/ParcaSil" onsubmit="return confirm('@p.ParcaAdi parçasını silmek istediğinize emin misiniz?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@p.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Sil</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Düzenleme Modalı -->
+                                    <div class="modal fade" id="duzenleModal-@p.Id" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered">
+                                            <div class="modal-content text-start">
+                                                <div class="modal-header bg-primary text-white">
+                                                    <h5 class="modal-title fs-6 fw-bold">⚙️ Parça Düzenle: @p.ParcaAdi</h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <form method="post" action="/Muhendis/ParcaGuncelle">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@p.Id" />
+
+                                                    <div class="modal-body p-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold small text-secondary">Parça Adı / Kodu</label>
+                                                            <input type="text" name="parcaAdi" class="form-control" value="@p.ParcaAdi" required />
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            <label class="form-label fw-semibold small text-secondary">Hedef Süre (dk / parça)</label>
+                                                            <input type="number" name="hedefSureDk" class="form-control" value="@p.HedefSureDk" min="1" required />
+                                                        </div>
+
+                                                        <div class="p-3 bg-light rounded-3 border">
+                                                            <span class="fw-bold small text-dark d-block mb-2">Vardiya Hedef Adetleri</span>
+
+                                                            <div class="mb-2">
+                                                                <label class="form-label small text-muted mb-1">1. Vardiya (08:00 - 17:45)</label>
+                                                                <input type="number" name="hedefVardiya1" class="form-control form-control-sm" value="@p.HedefMiktarVardiya1" min="0" required />
+                                                            </div>
+                                                            <div class="mb-2">
+                                                                <label class="form-label small text-muted mb-1">2. Vardiya (18:00 - 01:45)</label>
+                                                                <input type="number" name="hedefVardiya2" class="form-control form-control-sm" value="@p.HedefMiktarVardiya2" min="0" required />
+                                                            </div>
+                                                            <div>
+                                                                <label class="form-label small text-muted mb-1">3. Vardiya (02:00 - 07:45)</label>
+                                                                <input type="number" name="hedefVardiya3" class="form-control form-control-sm" value="@p.HedefMiktarVardiya3" min="0" required />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="modal-footer bg-light">
+                                                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Vazgeç</button>
+                                                        <button type="submit" class="btn btn-primary btn-sm fw-bold">Değişiklikleri Kaydet</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function hedefHesaplaVeAktar() {
+            const dk = parseFloat(document.getElementById("hesapDk").value) || 0;
+            const adet = parseFloat(document.getElementById("hesapAdet").value) || 1;
+            const mola = parseFloat(document.getElementById("hesapMola").value) || 0;
+
+            if (dk <= 0 || adet <= 0) {
+                alert("Lütfen geçerli bir süre ve parça adedi girin!");
+                return;
+            }
+
+            // 1 adet parçanın kaç dakikada çıktığı
+            const birimSureDk = dk / adet;
+
+            // Vardiya Toplam Süreleri (Dakika)
+            const v1Toplam = 585; // 08:00 - 17:45 (9 sa 45 dk)
+            const v2Toplam = 465; // 18:00 - 01:45 (7 sa 45 dk)
+            const v3Toplam = 345; // 02:00 - 07:45 (5 sa 45 dk)
+
+            // Net Çalışma Dakikaları
+            const v1Net = Math.max(0, v1Toplam - mola);
+            const v2Net = Math.max(0, v2Toplam - mola);
+            const v3Net = Math.max(0, v3Toplam - (mola > 30 ? 30 : mola)); // 3. vardiya kısa olduğu için molayı dengeler
+
+            // Adet Hesaplamaları (Aşağı yuvarlar)
+            const hedefV1 = Math.floor(v1Net / birimSureDk);
+            const hedefV2 = Math.floor(v2Net / birimSureDk);
+            const hedefV3 = Math.floor(v3Net / birimSureDk);
+
+            // Kutulara Aktarma
+            document.getElementById("formHedefSure").value = Math.round(birimSureDk);
+            document.getElementById("formV1").value = hedefV1;
+            document.getElementById("formV2").value = hedefV2;
+            document.getElementById("formV3").value = hedefV3;
+        }
+    </script>
+</body>
+</html>

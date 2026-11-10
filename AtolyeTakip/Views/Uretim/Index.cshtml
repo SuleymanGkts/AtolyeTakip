@@ -1,0 +1,319 @@
+﻿@model AtolyeTakip.Models.UretimKaydi
+@{
+    Layout = null;
+    var tezgahlar = ViewBag.Tezgahlar as List<AtolyeTakip.Models.Tezgah> ?? new();
+    var parcalar = ViewBag.Parcalar as List<AtolyeTakip.Models.Parca> ?? new();
+}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Personel Üretim Girişi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .vardiya-kutu {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+            .vardiya-kutu:hover {
+                background-color: #f8f9fa;
+                border-color: #0d6efd !important;
+            }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark px-3 mb-3 shadow-sm">
+        <span class="navbar-brand mb-0 fs-6 fw-bold">👷 Personel: @User.Identity?.Name</span>
+        <a href="/Hesap/Cikis" class="btn btn-outline-light btn-sm fw-semibold">Çıkış Yap</a>
+    </nav>
+
+    <div class="container pb-4" style="max-width: 580px;">
+
+        @if (TempData["Basari"] != null || TempData["Mesaj"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show fw-bold text-center shadow-sm" role="alert">
+                ✅ @(TempData["Basari"] ?? TempData["Mesaj"])
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        <div id="hataKutusu" class="alert alert-danger shadow-sm d-none fw-bold text-center" role="alert"></div>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="alert alert-danger shadow-sm">
+                @Html.ValidationSummary(false, "", new { @class = "mb-0" })
+            </div>
+        }
+
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-primary text-white text-center py-3 rounded-top-4">
+                <h5 class="mb-0 fw-bold">Personel Vardiya Üretim Formu</h5>
+            </div>
+
+            <div class="card-body p-4">
+                <form action="/Uretim/Kaydet" method="post" id="uretimForm" onsubmit="return formuDogrula(event)">
+                    @Html.AntiForgeryToken()
+
+                    <!-- 1. VARDİYA SEÇİMİ -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark d-flex justify-content-between align-items-center">
+                            <span>1. Vardiya Seçimi</span>
+                            <span class="badge bg-danger fw-normal" id="vardiyaUyari">Önce Vardiya Seçiniz</span>
+                        </label>
+                        <div class="d-flex flex-column gap-2">
+                            <label class="form-check p-3 border rounded-3 bg-white vardiya-kutu m-0" for="v1">
+                                <input class="form-check-input" type="radio" name="vardiya" id="v1" value="1. Vard: 08:00 - 17:45" required onchange="vardiyaSecildi()">
+                                <span class="form-check-label fw-bold ms-2 text-dark">1. Vardiya: 08:00 – 17:45</span>
+                            </label>
+
+                            <label class="form-check p-3 border rounded-3 bg-white vardiya-kutu m-0" for="v2">
+                                <input class="form-check-input" type="radio" name="vardiya" id="v2" value="2. Vard: 18:00 - 01:45" required onchange="vardiyaSecildi()">
+                                <span class="form-check-label fw-bold ms-2 text-dark">2. Vardiya: 18:00 – 01:45</span>
+                            </label>
+
+                            <label class="form-check p-3 border rounded-3 bg-white vardiya-kutu m-0" for="v3">
+                                <input class="form-check-input" type="radio" name="vardiya" id="v3" value="3. Vard: 02:00 - 07:45" required onchange="vardiyaSecildi()">
+                                <span class="form-check-label fw-bold ms-2 text-dark">3. Vardiya: 02:00 – 07:45</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <!-- 2. TEZGAH SEÇİMİ -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">2. Tezgah Seçimi</label>
+                        <select name="tezgahAdi" id="tezgahSecim" class="form-select form-select-lg" required disabled>
+                            <option value="">-- Lütfen Önce Vardiya Seçiniz --</option>
+                            @foreach (var t in tezgahlar)
+                            {
+                                <option value="@t.TezgahAdi">⚙️ @t.TezgahAdi</option>
+                            }
+                        </select>
+                    </div>
+
+                    <!-- 3. PARÇA SEÇİMİ -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">3. Parça Seçimi</label>
+                        <select name="parcaSecim" id="parcaSecim" class="form-select form-select-lg" required disabled onchange="hedefGuncelle()">
+                            <option value="">-- Lütfen Önce Vardiya Seçiniz --</option>
+                            @foreach (var p in parcalar)
+                            {
+                                <option value="@p.Id"
+                                        data-v1="@p.HedefMiktarVardiya1"
+                                        data-v2="@p.HedefMiktarVardiya2"
+                                        data-v3="@p.HedefMiktarVardiya3">
+                                    @p.ParcaAdi
+                                </option>
+                            }
+                            <option value="MANUEL">+ Standart Dışı (Aparat / Deneme / Diğer)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 d-none" id="manuelKutu">
+                        <label class="form-label fw-bold text-warning-emphasis">Aparat / Deneme Adı</label>
+                        <input type="text" name="manuelParcaAdi" id="manuelParcaAdi" class="form-control form-control-lg" placeholder="Yapılan işin / parçanın adını yazınız...">
+                    </div>
+
+                    <div class="mb-3" id="hedefKutusu">
+                        <label class="form-label small text-muted fw-bold">Vardiya Hedef Miktarı</label>
+                        <input type="text" id="gostergeHedefMiktar" class="form-control form-control-lg bg-light text-center fw-bold text-primary fs-5" readonly placeholder="-">
+                    </div>
+
+                    <hr />
+
+                    <!-- 4. ÜRETİM MİKTARLARI -->
+                    <h6 class="fw-bold mb-2 text-secondary">4. Üretim Miktarları</h6>
+                    <div class="row g-2 mb-2">
+                        <div class="col-4">
+                            <label class="form-label small fw-bold text-success">Sağlam Miktar</label>
+                            <input type="number" name="saglamMiktar" id="saglam" class="form-control form-control-lg text-center fw-bold" placeholder="0" min="0" oninput="toplamHesapla()">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small fw-bold text-danger">Hurda Miktar</label>
+                            <input type="number" name="hurdaMiktar" id="hurda" class="form-control form-control-lg text-center fw-bold" placeholder="0" min="0" oninput="toplamHesapla()">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small fw-bold text-warning">Rework Miktar</label>
+                            <input type="number" name="reworkMiktar" id="rework" class="form-control form-control-lg text-center fw-bold" placeholder="0" min="0" oninput="toplamHesapla()">
+                        </div>
+                    </div>
+                    <div class="alert alert-secondary py-2 text-center mb-3">
+                        <strong>Toplam Üretim: </strong><span id="toplamGosterge" class="fs-5 fw-bold text-dark">0</span> Adet
+                    </div>
+
+                    <hr />
+
+                    <!-- 5. ÇALIŞMA SAATLERİ & AÇIKLAMA -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Çalışma Başlangıç</label>
+                            <input type="time" name="calismaBaslangic" id="calismaBaslangic" class="form-control" onchange="saatKontrol()">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold text-secondary">Çalışma Bitiş</label>
+                            <input type="time" name="calismaBitis" id="calismaBitis" class="form-control" onchange="saatKontrol()">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary" id="aciklamaLabel">Açıklama</label>
+                        <textarea name="aciklama" id="aciklama" class="form-control" rows="2" placeholder="Not veya tam mesai çalışamama gerekçesi..."></textarea>
+                        <small class="text-danger d-none fw-bold" id="aciklamaUyari">⚠️ Çalışma saatleri girildiğinde açıklama yazılması zorunludur!</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-bold fs-5 shadow">
+                        💾 KAYDET
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function vardiyaSecildi() {
+            const tezgahSecim = document.getElementById("tezgahSecim");
+            const parcaSecim = document.getElementById("parcaSecim");
+            const vardiyaUyari = document.getElementById("vardiyaUyari");
+
+            // Vardiya seçilince hem tezgah hem parça kilidi açılır
+            tezgahSecim.disabled = false;
+            tezgahSecim.options[0].text = "-- Tezgah Seçiniz --";
+
+            parcaSecim.disabled = false;
+            parcaSecim.options[0].text = "-- Parça Seçiniz --";
+
+            vardiyaUyari.classList.remove("bg-danger");
+            vardiyaUyari.classList.add("bg-success");
+            vardiyaUyari.innerText = "Vardiya Seçildi ✓";
+
+            hedefGuncelle();
+        }
+
+        function hedefGuncelle() {
+            const secim = document.getElementById("parcaSecim");
+            const manuelKutu = document.getElementById("manuelKutu");
+            const hedefKutusu = document.getElementById("hedefKutusu");
+            const miktarKutu = document.getElementById("gostergeHedefMiktar");
+
+            if (secim.value === "MANUEL") {
+                manuelKutu.classList.remove("d-none");
+                hedefKutusu.classList.add("d-none");
+                miktarKutu.value = "";
+                return;
+            }
+
+            manuelKutu.classList.add("d-none");
+            hedefKutusu.classList.remove("d-none");
+
+            if (!secim.value) {
+                miktarKutu.value = "-";
+                return;
+            }
+
+            const opt = secim.options[secim.selectedIndex];
+            const seciliVardiya = document.querySelector('input[name="vardiya"]:checked')?.value || "";
+            let hedefAdet = "-";
+
+            if (seciliVardiya.includes("1. Vard")) {
+                hedefAdet = opt.getAttribute("data-v1");
+            } else if (seciliVardiya.includes("2. Vard")) {
+                hedefAdet = opt.getAttribute("data-v2");
+            } else if (seciliVardiya.includes("3. Vard")) {
+                hedefAdet = opt.getAttribute("data-v3");
+            }
+
+            miktarKutu.value = (hedefAdet ? hedefAdet : "0") + " Adet Hedef";
+        }
+
+        function toplamHesapla() {
+            const s = parseInt(document.getElementById("saglam").value) || 0;
+            const h = parseInt(document.getElementById("hurda").value) || 0;
+            const r = parseInt(document.getElementById("rework").value) || 0;
+            document.getElementById("toplamGosterge").innerText = (s + h + r);
+        }
+
+        function saatKontrol() {
+            const bas = document.getElementById("calismaBaslangic").value;
+            const bit = document.getElementById("calismaBitis").value;
+            const aciklama = document.getElementById("aciklama");
+            const label = document.getElementById("aciklamaLabel");
+            const uyari = document.getElementById("aciklamaUyari");
+
+            if (bas || bit) {
+                aciklama.required = true;
+                label.innerHTML = 'Açıklama <span class="text-danger">* (Zorunlu)</span>';
+                uyari.classList.remove("d-none");
+            } else {
+                aciklama.required = false;
+                label.innerHTML = 'Açıklama';
+                uyari.classList.add("d-none");
+            }
+        }
+
+        function formuDogrula(e) {
+            const hataKutusu = document.getElementById("hataKutusu");
+            hataKutusu.classList.add("d-none");
+
+            const vardiyaSecildiMi = document.querySelector('input[name="vardiya"]:checked');
+            if (!vardiyaSecildiMi) {
+                hataKutusu.innerText = "⚠️ Lütfen önce bir vardiya seçiniz!";
+                hataKutusu.classList.remove("d-none");
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                e.preventDefault();
+                return false;
+            }
+
+            const tezgahSecim = document.getElementById("tezgahSecim");
+            if (!tezgahSecim.value) {
+                hataKutusu.innerText = "⚠️ Lütfen çalıştığınız tezgahı seçiniz!";
+                hataKutusu.classList.remove("d-none");
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                e.preventDefault();
+                return false;
+            }
+
+            const parcaSecim = document.getElementById("parcaSecim");
+            if (!parcaSecim.value) {
+                hataKutusu.innerText = "⚠️ Lütfen işlediğiniz parçayı seçiniz!";
+                hataKutusu.classList.remove("d-none");
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                e.preventDefault();
+                return false;
+            }
+
+            if (parcaSecim.value === "MANUEL") {
+                const manuelAd = document.getElementById("manuelParcaAdi").value.trim();
+                if (!manuelAd) {
+                    hataKutusu.innerText = "⚠️ Standart dışı iş için parça / aparat adını yazmalısınız!";
+                    hataKutusu.classList.remove("d-none");
+                    e.preventDefault();
+                    return false;
+                }
+            }
+
+            const s = parseInt(document.getElementById("saglam").value) || 0;
+            const h = parseInt(document.getElementById("hurda").value) || 0;
+            const r = parseInt(document.getElementById("rework").value) || 0;
+
+            if ((s + h + r) <= 0) {
+                hataKutusu.innerText = "⚠️ Üretim miktarı boş veya 0 olamaz! Lütfen Sağlam, Hurda veya Rework alanına sayı giriniz.";
+                hataKutusu.classList.remove("d-none");
+                e.preventDefault();
+                return false;
+            }
+
+            return true;
+        }
+    </script>
+</body>
+</html>

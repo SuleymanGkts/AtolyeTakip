@@ -1,0 +1,13 @@
+﻿{
+  "profiles": {
+    "AtolyeTakip": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "Hesap/Giris",
+      "applicationUrl": "http://0.0.0.0:5000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
